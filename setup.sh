@@ -169,10 +169,29 @@ cleanup_on_error() {
 
 check_internet() {
     info "Checking internet connectivity..."
-    if ! ping -c 1 google.com &> /dev/null; then
+    
+    # Try multiple methods to check internet connectivity
+    local connectivity_confirmed=false
+    
+    # Method 1: Try HTTP request to a reliable endpoint
+    if curl -s --connect-timeout 10 --max-time 15 "https://httpbin.org/get" > /dev/null 2>&1; then
+        connectivity_confirmed=true
+    # Method 2: Try connecting to Google's public DNS
+    elif curl -s --connect-timeout 10 --max-time 15 "http://detectportal.firefox.com/canonical.html" > /dev/null 2>&1; then
+        connectivity_confirmed=true
+    # Method 3: Fall back to ping if curl fails (some systems might not have curl yet)
+    elif command_exists ping && ping -c 1 -W 5 8.8.8.8 &> /dev/null; then
+        connectivity_confirmed=true
+    # Method 4: Try wget as final fallback
+    elif command_exists wget && wget --spider --quiet --timeout=10 "https://httpbin.org/get" 2>/dev/null; then
+        connectivity_confirmed=true
+    fi
+    
+    if [[ "$connectivity_confirmed" == true ]]; then
+        success "Internet connectivity confirmed."
+    else
         error "No internet connection available. Setup requires internet access."
     fi
-    success "Internet connectivity confirmed."
 }
 
 check_root() {
