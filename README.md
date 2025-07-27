@@ -17,7 +17,7 @@ A comprehensive script to automate the setup of a modern development environment
 1. **Clone and run:**
 
     ```bash
-    git clone https://github.com/your-username/dotfiles-ubuntu.git
+    git clone https://github.com/dasun-sathsara/dotfiles-ubuntu.git
     cd dotfiles-ubuntu
     chmod +x setup.sh
     ./setup.sh
