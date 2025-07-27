@@ -243,7 +243,7 @@ install_package_with_fallback() {
 
 # --- Main Setup Functions ---
 initial_setup() {
-    progress 1 11 "Initial system setup"
+    progress 1 12 "Initial system setup"
     check_root
     detect_ubuntu_version
     check_internet
@@ -258,7 +258,7 @@ initial_setup() {
 }
 
 install_packages() {
-    progress 2 11 "Installing core packages"
+    progress 2 12 "Installing core packages"
     info "Installing necessary packages..."
     
     # Core packages that should be available on all supported Ubuntu versions
@@ -292,7 +292,7 @@ install_packages() {
 }
 
 install_pnpm() {
-    progress 3 11 "Installing pnpm"
+    progress 3 12 "Installing pnpm"
     if command_exists pnpm; then
         info "pnpm is already installed."
     else
@@ -303,7 +303,7 @@ install_pnpm() {
 }
 
 install_uv() {
-    progress 4 11 "Installing uv (Python package manager)"
+    progress 4 12 "Installing uv (Python package manager)"
     if command_exists uv; then
         info "uv is already installed."
     else
@@ -315,7 +315,7 @@ install_uv() {
 }
 
 install_go() {
-    progress 5 11 "Installing Go"
+    progress 5 12 "Installing Go"
     if command_exists go; then
         info "Go is already installed."
     else
@@ -371,8 +371,33 @@ install_go() {
     fi
 }
 
+install_rust() {
+    progress 6 12 "Installing Rust and Cargo"
+    if command_exists rustc && command_exists cargo; then
+        info "Rust and Cargo are already installed."
+    else
+        info "Installing Rust and Cargo via rustup..."
+        
+        # Download and install rustup
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y || error "Failed to install Rust"
+        
+        # Source cargo environment for current session
+        source "$HOME/.cargo/env" 2>/dev/null || true
+        
+        # Verify installation
+        if command_exists rustc && command_exists cargo; then
+            local rust_version=$(rustc --version 2>/dev/null || echo "unknown")
+            local cargo_version=$(cargo --version 2>/dev/null || echo "unknown")
+            success "Rust installed successfully: $rust_version"
+            success "Cargo installed successfully: $cargo_version"
+        else
+            error "Rust installation verification failed"
+        fi
+    fi
+}
+
 setup_zsh() {
-    progress 6 11 "Setting up Zsh with Oh My Zsh"
+    progress 7 12 "Setting up Zsh with Oh My Zsh"
     info "Setting up Zsh..."
     
     # Install Oh My Zsh if not present
@@ -409,7 +434,7 @@ setup_zsh() {
 }
 
 setup_tmux() {
-    progress 7 11 "Setting up Tmux"
+    progress 8 12 "Setting up Tmux"
     info "Setting up Tmux..."
     
     # Install TPM if not present
@@ -445,7 +470,7 @@ setup_tmux() {
 }
 
 setup_neovim() {
-    progress 8 11 "Setting up Neovim"
+    progress 9 12 "Setting up Neovim"
     info "Setting up Neovim..."
     
     # Copy Neovim configuration with change detection
@@ -455,7 +480,7 @@ setup_neovim() {
 }
 
 setup_docker() {
-    progress 9 11 "Setting up Docker"
+    progress 10 12 "Setting up Docker"
     if command_exists docker; then
         info "Docker is already installed."
         return
@@ -520,7 +545,7 @@ setup_docker() {
 }
 
 harden_ssh() {
-    progress 10 11 "Hardening SSH configuration"
+    progress 11 12 "Hardening SSH configuration"
     info "Hardening SSH configuration..."
     
     # Backup SSH config
@@ -540,7 +565,7 @@ harden_ssh() {
 }
 
 final_cleanup() {
-    progress 11 11 "Final cleanup and summary"
+    progress 12 12 "Final cleanup and summary"
     info "Performing final cleanup..."
     
     # Clean up temporary files
@@ -552,7 +577,7 @@ final_cleanup() {
     info "=== SETUP SUMMARY ==="
     info "✓ Ubuntu $UBUNTU_VERSION ($UBUNTU_CODENAME) compatibility verified"
     info "✓ System packages updated"
-    info "✓ Development tools installed (Go, Python/uv, Node.js/pnpm)"
+    info "✓ Development tools installed (Go, Rust/Cargo, Python/uv, Node.js/pnpm)"
     info "✓ File utilities installed (eza/exa, bat/batcat)"
     info "✓ Zsh configured with Oh My Zsh and agnoster theme"
     info "✓ Tmux configured with enhanced features and plugins"
@@ -581,6 +606,7 @@ main() {
     install_pnpm
     install_uv
     install_go
+    install_rust
     setup_zsh
     setup_tmux
     setup_neovim
