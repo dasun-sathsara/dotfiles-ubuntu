@@ -446,7 +446,7 @@ setup_zsh() {
         chsh -s "$(which zsh)" || warning "Failed to change default shell. You may need to log out and back in."
     fi
     
-    success "Zsh is configured with Oh My Zsh and agnoster theme."
+    success "Zsh is configured with Oh My Zsh and clean theme."
 }
 
 setup_tmux() {
@@ -604,7 +604,7 @@ final_cleanup() {
     info "✓ System packages updated"
     info "✓ Development tools installed (Go, Rust/Cargo, Python/uv, Node.js/pnpm)"
     info "✓ File utilities installed (eza/exa, bat/batcat, fzf)"
-    info "✓ Zsh configured with Oh My Zsh and agnoster theme + enhanced history search"
+    info "✓ Zsh configured with Oh My Zsh and clean theme + enhanced history search"
     if grep -q "@plugin" "$HOME/.tmux.conf" 2>/dev/null; then
         info "✓ Tmux configured with enhanced features + plugins + fuzzy history search"
     else

@@ -4,7 +4,7 @@ A comprehensive script to automate the setup of a modern development environment
 
 ## Features
 
--   **Shell:** Zsh with Oh My Zsh, Agnoster theme, auto-suggestions, and syntax highlighting
+-   **Shell:** Zsh with Oh My Zsh, clean theme, `fzf` integration, auto-suggestions, and syntax highlighting
 -   **Multiplexer:** Tmux with enhanced navigation, Catppuccin theme, and session management
 -   **Editor:** Neovim with a modern Lua-based configuration
 -   **Languages & Runtimes:** Go, Rust (with Cargo), Python (with `uv`), and Node.js (with `pnpm`)
@@ -58,7 +58,7 @@ A comprehensive script to automate the setup of a modern development environment
 ### Shell Environment
 
 -   **Zsh**: Default shell with Oh My Zsh framework
--   **Theme**: Agnoster with powerline fonts
+-   **Theme**: Clean (minimal) with optional powerline fonts
 -   **Plugins**: Auto-suggestions and syntax highlighting
 -   **Smart aliases**: Automatically adapt based on installed tools
 

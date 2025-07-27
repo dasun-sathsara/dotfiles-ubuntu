@@ -5,11 +5,12 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which theme is loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="agnoster"
+ZSH_THEME="clean"
 
 # Set list of plugins.
 plugins=(
   git
+  fzf
   zsh-autosuggestions
   zsh-syntax-highlighting
 )
@@ -19,7 +20,9 @@ source $ZSH/oh-my-zsh.sh
 # --- Better History Search with fzf ---
 if command -v fzf &> /dev/null; then
     # Source fzf key bindings and completion
-    if [[ -f /usr/share/fzf/key-bindings.zsh ]]; then
+    if [[ -f /usr/share/fzf/shell/key-bindings.zsh ]]; then
+        source /usr/share/fzf/shell/key-bindings.zsh
+    elif [[ -f /usr/share/fzf/key-bindings.zsh ]]; then
         source /usr/share/fzf/key-bindings.zsh
     elif [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]]; then
         source /usr/share/doc/fzf/examples/key-bindings.zsh
@@ -27,7 +30,9 @@ if command -v fzf &> /dev/null; then
         source ~/.fzf.zsh
     fi
     
-    if [[ -f /usr/share/fzf/completion.zsh ]]; then
+    if [[ -f /usr/share/fzf/shell/completion.zsh ]]; then
+        source /usr/share/fzf/shell/completion.zsh
+    elif [[ -f /usr/share/fzf/completion.zsh ]]; then
         source /usr/share/fzf/completion.zsh
     elif [[ -f /usr/share/doc/fzf/examples/completion.zsh ]]; then
         source /usr/share/doc/fzf/examples/completion.zsh
@@ -87,7 +92,7 @@ alias dv='docker volume ls'
 alias dn='docker network ls'
 
 # pnpm
-export PNPM_HOME="/home/user/.local/share/pnpm"
+export PNPM_HOME="$HOME/.local/share/pnpm"
 case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
