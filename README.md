@@ -12,13 +12,6 @@ A comprehensive script to automate the setup of a modern development environment
 -   **Security:** Disables SSH password authentication in favor of SSH keys
 -   **Idempotent Design:** Safe to run multiple times with automatic change detection
 
-## Supported Versions
-
--   **Ubuntu 24.04 LTS** - Fully supported
--   **Ubuntu 24.10** - Fully supported
--   **Ubuntu 25.04** - Fully supported
--   **Ubuntu 25.10** - Fully supported
-
 ## Quick Start
 
 1. **Clone and run:**
@@ -74,43 +67,3 @@ A comprehensive script to automate the setup of a modern development environment
 -   **Tmux**: Enhanced configuration with custom key bindings
 -   **Plugins**: TPM, Catppuccin theme, session management
 -   **Features**: Session resurrection and continuum
-
-## Re-running the Script
-
-The script is **idempotent** and can be safely run multiple times. It will:
-
--   Skip unchanged configurations using SHA256 checksums
--   Only update files that have actually been modified
--   Preserve existing installations
--   Apply updated configuration files automatically
-
-Simply run `./setup.sh` again to apply any updates.
-
-## File Structure
-
-```
-dotfiles-ubuntu/
-├── setup.sh           # Main installation script
-├── .zshrc             # Zsh configuration with smart aliases
-├── .tmux.conf         # Tmux configuration
-├── init.lua           # Neovim configuration
-├── README.md          # This file
-├── CHEATSHEET.md      # Quick reference for aliases and keybindings
-└── .gitignore         # Git ignore patterns
-```
-
-## Quick Reference
-
-After installation, check `CHEATSHEET.md` for the most commonly used:
-
--   Zsh aliases (file operations, git shortcuts, docker commands)
--   Tmux keybindings (session/window/pane management)
--   Neovim keybindings (editing and navigation)
--   Development tool commands (cargo, go, uv, pnpm)
-
-## Troubleshooting
-
--   **For Ubuntu 25.04+**: The script automatically falls back to Ubuntu 24.04 repositories when needed
--   **Package issues**: Most issues can be resolved by re-running the script
--   **Logs**: Check the log file location displayed during setup for detailed error information
--   **Backups**: Configuration backups are saved with timestamps for easy restoration
