@@ -467,22 +467,31 @@ setup_tmux() {
         tmux_updated=true
     fi
     
-    # Install plugins only if configuration was updated or plugins don't exist
-    if [[ "$tmux_updated" == true ]] || [[ ! -d "$HOME/.tmux/plugins/catppuccin" ]]; then
-        info "Installing Tmux plugins..."
-        if command_exists tmux; then
-            # Kill any existing tmux sessions to avoid conflicts
-            tmux kill-server 2>/dev/null || true
-            tmux start-server || true
-            tmux new-session -d -s setup_session || true
-            "$HOME/.tmux/plugins/tpm/scripts/install_plugins.sh" || warning "Failed to install some tmux plugins automatically"
-            tmux kill-session -t setup_session 2>/dev/null || true
+    # Check if configuration uses plugins before trying to install them
+    if grep -q "@plugin" "$HOME/.tmux.conf" 2>/dev/null; then
+        # Install plugins only if configuration was updated or plugins don't exist
+        if [[ "$tmux_updated" == true ]] || [[ ! -d "$HOME/.tmux/plugins/catppuccin" ]]; then
+            info "Installing Tmux plugins..."
+            if command_exists tmux; then
+                # Kill any existing tmux sessions to avoid conflicts
+                tmux kill-server 2>/dev/null || true
+                tmux start-server || true
+                tmux new-session -d -s setup_session || true
+                "$HOME/.tmux/plugins/tpm/scripts/install_plugins.sh" || warning "Failed to install some tmux plugins automatically"
+                tmux kill-session -t setup_session 2>/dev/null || true
+            fi
+        else
+            info "Tmux plugins are already installed."
         fi
     else
-        info "Tmux plugins are already installed."
+        info "Tmux configuration is minimal (no plugins), skipping plugin installation."
     fi
     
-    success "Tmux configured with enhanced features and plugins."
+    if grep -q "@plugin" "$HOME/.tmux.conf" 2>/dev/null; then
+        success "Tmux configured with enhanced features and plugins."
+    else
+        success "Tmux configured with minimal, clean configuration and enhanced features."
+    fi
 }
 
 setup_neovim() {
@@ -596,7 +605,11 @@ final_cleanup() {
     info "✓ Development tools installed (Go, Rust/Cargo, Python/uv, Node.js/pnpm)"
     info "✓ File utilities installed (eza/exa, bat/batcat, fzf)"
     info "✓ Zsh configured with Oh My Zsh and agnoster theme + enhanced history search"
-    info "✓ Tmux configured with enhanced features + fuzzy history search"
+    if grep -q "@plugin" "$HOME/.tmux.conf" 2>/dev/null; then
+        info "✓ Tmux configured with enhanced features + plugins + fuzzy history search"
+    else
+        info "✓ Tmux configured with minimal, clean setup + fuzzy history search"
+    fi
     info "✓ Neovim configuration installed"
     info "✓ Docker and Docker Compose installed"
     info "✓ SSH hardened (password auth disabled)"
