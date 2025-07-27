@@ -386,6 +386,9 @@ install_go() {
     else
         info "Installing Go..."
         
+        # Save current directory to return to it later
+        local original_dir="$PWD"
+        
         # Try official binary installation first (more reliable)
         local go_version="1.23.4"  # Update this to latest stable version
         local go_archive="go${go_version}.linux-amd64.tar.gz"
@@ -406,10 +409,14 @@ install_go() {
             # Verify installation
             if /usr/local/go/bin/go version; then
                 success "Go installed successfully from official binary."
+                cd "$original_dir"
                 rm -rf "$temp_dir"
                 return 0
             fi
         fi
+        
+        # Return to original directory before trying fallback
+        cd "$original_dir"
         
         # Fallback to package manager
         warning "Official binary installation failed, trying package manager..."
@@ -432,6 +439,7 @@ install_go() {
                 ;;
         esac
         
+        # Clean up temp directory
         rm -rf "$temp_dir"
     fi
 }
