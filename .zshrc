@@ -17,20 +17,45 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 
 # --- Aliases ---
-alias ls='exa -l --icons --git'
-alias la='exa -la --icons --git'
-alias ll='exa -l --icons --git' [29]
+# File listing - prefer eza over exa, fallback to ls
+if command -v eza &> /dev/null; then
+    alias ls='eza -l --icons --git'
+    alias la='eza -la --icons --git'
+    alias ll='eza -l --icons --git'
+elif command -v exa &> /dev/null; then
+    alias ls='exa -l --icons --git'
+    alias la='exa -la --icons --git'
+    alias ll='exa -l --icons --git'
+else
+    alias ls='ls -l --color=auto'
+    alias la='ls -la --color=auto'
+    alias ll='ls -l --color=auto'
+fi
+
+# Navigation
 alias ..='cd ..'
 alias ...='cd ../..'
 alias grep='grep --color=auto'
+
+# Git shortcuts
 alias g='git'
 alias gp='git pull'
 alias gs='git status'
 alias ga='git add .'
 alias gc='git commit -m'
-alias cat='batcat' # on Ubuntu, bat is installed as batcat
+
+# Better cat - prefer bat over batcat
+if command -v bat &> /dev/null; then
+    alias cat='bat'
+elif command -v batcat &> /dev/null; then
+    alias cat='batcat'
+fi
+
+# Editor
 alias vim='nvim'
 alias vi='nvim'
+
+# Docker shortcuts
 alias dps='docker ps -a'
 alias di='docker images'
 alias dv='docker volume ls'

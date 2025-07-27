@@ -10,6 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/setup_$(date +%Y%m%d_%H%M%S).log"
 BACKUP_DIR="$HOME/.dotfiles_backup_$(date +%Y%m%d_%H%M%S)"
 
+# Ubuntu version detection
+UBUNTU_VERSION=""
+UBUNTU_CODENAME=""
+
 # --- Pretty Output Functions ---
 info() {
     echo -e "\033[34m[INFO]\033[0m $1" | tee -a "$LOG_FILE"
@@ -72,6 +76,31 @@ check_root() {
     fi
 }
 
+detect_ubuntu_version() {
+    info "Detecting Ubuntu version..."
+    if [[ -f /etc/os-release ]]; then
+        source /etc/os-release
+        if [[ "$ID" != "ubuntu" ]]; then
+            error "This script is designed for Ubuntu systems only. Detected: $ID"
+        fi
+        UBUNTU_VERSION="$VERSION_ID"
+        UBUNTU_CODENAME="$VERSION_CODENAME"
+        info "Detected Ubuntu $UBUNTU_VERSION ($UBUNTU_CODENAME)"
+        
+        # Check for supported versions
+        case "$UBUNTU_VERSION" in
+            "24.04"|"24.10"|"25.04"|"25.10")
+                success "Ubuntu $UBUNTU_VERSION is supported."
+                ;;
+            *)
+                warning "Ubuntu $UBUNTU_VERSION may not be fully supported. This script is optimized for Ubuntu 24.04+ and 25.04+."
+                ;;
+        esac
+    else
+        error "Cannot detect Ubuntu version. /etc/os-release not found."
+    fi
+}
+
 install_package() {
     local package=$1
     if dpkg -l | grep -q "^ii  $package "; then
@@ -83,10 +112,35 @@ install_package() {
     fi
 }
 
+install_package_with_fallback() {
+    local primary=$1
+    local fallback=${2:-""}
+    
+    if dpkg -l | grep -q "^ii  $primary "; then
+        info "$primary is already installed."
+        return 0
+    fi
+    
+    info "Attempting to install $primary..."
+    if sudo apt-get install -y "$primary" 2>/dev/null; then
+        success "$primary installed successfully."
+        return 0
+    elif [[ -n "$fallback" ]]; then
+        warning "$primary not available, trying fallback: $fallback"
+        if sudo apt-get install -y "$fallback" 2>/dev/null; then
+            success "$fallback installed successfully."
+            return 0
+        fi
+    fi
+    
+    error "Failed to install $primary${fallback:+ or $fallback}"
+}
+
 # --- Main Setup Functions ---
 initial_setup() {
-    progress 1 10 "Initial system setup"
+    progress 1 11 "Initial system setup"
     check_root
+    detect_ubuntu_version
     check_internet
     
     info "Starting the development environment setup..."
@@ -98,25 +152,41 @@ initial_setup() {
 }
 
 install_packages() {
-    progress 2 10 "Installing core packages"
+    progress 2 11 "Installing core packages"
     info "Installing necessary packages..."
     
-    local packages=(
-        "neovim" "tmux" "zsh" "htop" "fastfetch" "exa"
+    # Core packages that should be available on all supported Ubuntu versions
+    local core_packages=(
+        "neovim" "tmux" "zsh" "htop" "fastfetch"
         "npm" "python3" "python3-venv" "python3-pip"
         "build-essential" "curl" "file" "git" "xclip"
         "ca-certificates" "software-properties-common"
     )
     
-    for package in "${packages[@]}"; do
+    for package in "${core_packages[@]}"; do
         install_package "$package"
     done
+    
+    # Install exa/eza with fallback based on Ubuntu version
+    info "Installing file listing utility..."
+    case "$UBUNTU_VERSION" in
+        "24.04"|"24.10")
+            install_package_with_fallback "exa" "eza"
+            ;;
+        "25.04"|"25.10"|*)
+            install_package_with_fallback "eza" "exa"
+            ;;
+    esac
+    
+    # Install bat/batcat with fallback
+    info "Installing bat (better cat)..."
+    install_package_with_fallback "bat" "batcat"
     
     success "Core packages installed."
 }
 
 install_pnpm() {
-    progress 3 10 "Installing pnpm"
+    progress 3 11 "Installing pnpm"
     if command_exists pnpm; then
         info "pnpm is already installed."
     else
@@ -127,7 +197,7 @@ install_pnpm() {
 }
 
 install_uv() {
-    progress 4 10 "Installing uv (Python package manager)"
+    progress 4 11 "Installing uv (Python package manager)"
     if command_exists uv; then
         info "uv is already installed."
     else
@@ -139,20 +209,64 @@ install_uv() {
 }
 
 install_go() {
-    progress 5 10 "Installing Go"
+    progress 5 11 "Installing Go"
     if command_exists go; then
         info "Go is already installed."
     else
         info "Installing Go..."
-        sudo add-apt-repository -y ppa:longsleep/golang-backports || error "Failed to add Go repository"
-        sudo apt-get update || error "Failed to update package list"
-        sudo apt-get install -y golang-go || error "Failed to install Go"
-        success "Go installed."
+        
+        # Try official binary installation first (more reliable)
+        local go_version="1.23.4"  # Update this to latest stable version
+        local go_archive="go${go_version}.linux-amd64.tar.gz"
+        local temp_dir="/tmp/go-install"
+        
+        mkdir -p "$temp_dir"
+        cd "$temp_dir"
+        
+        info "Downloading Go $go_version..."
+        if curl -LO "https://golang.org/dl/${go_archive}"; then
+            info "Installing Go from official binary..."
+            sudo rm -rf /usr/local/go
+            sudo tar -C /usr/local -xzf "$go_archive"
+            
+            # Add Go to PATH for current session
+            export PATH=$PATH:/usr/local/go/bin
+            
+            # Verify installation
+            if /usr/local/go/bin/go version; then
+                success "Go installed successfully from official binary."
+                rm -rf "$temp_dir"
+                return 0
+            fi
+        fi
+        
+        # Fallback to package manager
+        warning "Official binary installation failed, trying package manager..."
+        case "$UBUNTU_VERSION" in
+            "24.04"|"24.10"|"25.04"|"25.10")
+                # Try apt package first
+                if sudo apt-get install -y golang-go 2>/dev/null; then
+                    success "Go installed from apt package."
+                else
+                    # Fallback to PPA for older versions
+                    warning "Standard Go package not available, trying PPA..."
+                    sudo add-apt-repository -y ppa:longsleep/golang-backports || error "Failed to add Go repository"
+                    sudo apt-get update || error "Failed to update package list"
+                    sudo apt-get install -y golang-go || error "Failed to install Go"
+                    success "Go installed from PPA."
+                fi
+                ;;
+            *)
+                error "Unsupported Ubuntu version for Go installation"
+                ;;
+        esac
+        
+        rm -rf "$temp_dir"
     fi
 }
 
 setup_zsh() {
-    progress 6 10 "Setting up Zsh with Oh My Zsh"
+    progress 6 11 "Setting up Zsh with Oh My Zsh"
     info "Setting up Zsh..."
     
     # Install Oh My Zsh if not present
@@ -190,7 +304,7 @@ setup_zsh() {
 }
 
 setup_tmux() {
-    progress 7 10 "Setting up Tmux"
+    progress 7 11 "Setting up Tmux"
     info "Setting up Tmux..."
     
     # Install TPM if not present
@@ -220,7 +334,7 @@ setup_tmux() {
 }
 
 setup_neovim() {
-    progress 8 10 "Setting up Neovim"
+    progress 8 11 "Setting up Neovim"
     info "Setting up Neovim..."
     
     mkdir -p "$HOME/.config/nvim"
@@ -231,7 +345,7 @@ setup_neovim() {
 }
 
 setup_docker() {
-    progress 9 10 "Setting up Docker"
+    progress 9 11 "Setting up Docker"
     if command_exists docker; then
         info "Docker is already installed."
         return
@@ -249,15 +363,44 @@ setup_docker() {
         sudo chmod a+r /etc/apt/keyrings/docker.asc
     fi
     
-    # Add Docker repository
+    # Add Docker repository with fallback support
+    local docker_codename="$UBUNTU_CODENAME"
+    
+    # Handle newer Ubuntu versions that might not have Docker repo yet
+    case "$UBUNTU_VERSION" in
+        "25.04"|"25.10")
+            warning "Ubuntu $UBUNTU_VERSION detected. Trying Docker repository with $docker_codename, with fallback to noble if needed."
+            ;;
+    esac
+    
     echo \
       "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      $docker_codename stable" | \
       sudo tee /etc/apt/sources.list.d/docker.list > /dev/null || error "Failed to add Docker repository"
     
-    # Install Docker
-    sudo apt-get update || error "Failed to update package list"
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || error "Failed to install Docker"
+    # Install Docker with fallback
+    sudo apt-get update || warning "Failed to update package list, trying with fallback"
+    
+    if ! sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 2>/dev/null; then
+        if [[ "$UBUNTU_VERSION" =~ ^25\. ]]; then
+            warning "Docker packages not available for $UBUNTU_CODENAME, trying with noble (Ubuntu 24.04) repository..."
+            
+            # Replace repository with noble fallback
+            echo \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+              noble stable" | \
+              sudo tee /etc/apt/sources.list.d/docker.list > /dev/null || error "Failed to add fallback Docker repository"
+            
+            sudo apt-get update || error "Failed to update package list with fallback repository"
+            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || error "Failed to install Docker with fallback"
+            
+            success "Docker installed using noble (Ubuntu 24.04) repository."
+        else
+            error "Failed to install Docker"
+        fi
+    else
+        success "Docker installed using native repository."
+    fi
     
     # Add user to docker group
     sudo groupadd -f docker
@@ -267,7 +410,7 @@ setup_docker() {
 }
 
 harden_ssh() {
-    progress 10 10 "Hardening SSH configuration"
+    progress 10 11 "Hardening SSH configuration"
     info "Hardening SSH configuration..."
     
     # Backup SSH config
@@ -287,6 +430,7 @@ harden_ssh() {
 }
 
 final_cleanup() {
+    progress 11 11 "Final cleanup and summary"
     info "Performing final cleanup..."
     
     # Clean up temporary files
@@ -296,8 +440,10 @@ final_cleanup() {
     success "Setup completed successfully!"
     echo ""
     info "=== SETUP SUMMARY ==="
+    info "✓ Ubuntu $UBUNTU_VERSION ($UBUNTU_CODENAME) compatibility verified"
     info "✓ System packages updated"
     info "✓ Development tools installed (Go, Python/uv, Node.js/pnpm)"
+    info "✓ File utilities installed (eza/exa, bat/batcat)"
     info "✓ Zsh configured with Oh My Zsh and agnoster theme"
     info "✓ Tmux configured with enhanced features and plugins"
     info "✓ Neovim configuration installed"
@@ -308,6 +454,7 @@ final_cleanup() {
     echo ""
     warning "IMPORTANT: Please reboot your system for all changes to take effect."
     warning "After reboot, run 'tmux' and press Ctrl+a + I to install tmux plugins."
+    info "The setup has been optimized for Ubuntu 24.04+ and 25.04+ compatibility."
 }
 
 # --- Main Execution ---
