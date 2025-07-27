@@ -11,7 +11,7 @@ vim.opt.clipboard = "unnamedplus"
 
 -- Basic editor settings
 vim.opt.number = true
-vim.opt.relativenumber = true
+-- vim.opt.relativenumber = true  -- Disabled: weird line numbers
 vim.opt.cursorline = true
 vim.opt.scrolloff = 8
 vim.opt.sidescrolloff = 8

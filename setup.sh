@@ -282,7 +282,7 @@ install_packages() {
     
     # Core packages that should be available on all supported Ubuntu versions
     local core_packages=(
-        "neovim" "tmux" "zsh" "htop" "fastfetch"
+        "neovim" "tmux" "zsh" "htop" "fastfetch" "fzf"
         "npm" "python3" "python3-venv" "python3-pip"
         "build-essential" "curl" "file" "git" "xclip"
         "ca-certificates" "software-properties-common"
@@ -651,9 +651,9 @@ final_cleanup() {
     info "✓ Ubuntu $UBUNTU_VERSION ($UBUNTU_CODENAME) compatibility verified"
     info "✓ System packages updated"
     info "✓ Development tools installed (Go, Rust/Cargo, Python/uv, Node.js/pnpm)"
-    info "✓ File utilities installed (eza/exa, bat/batcat)"
-    info "✓ Zsh configured with Oh My Zsh and agnoster theme"
-    info "✓ Tmux configured with enhanced features and plugins"
+    info "✓ File utilities installed (eza/exa, bat/batcat, fzf)"
+    info "✓ Zsh configured with Oh My Zsh and agnoster theme + enhanced history search"
+    info "✓ Tmux configured with enhanced features + fuzzy history search"
     info "✓ Neovim configuration installed"
     info "✓ Docker and Docker Compose installed"
     info "✓ SSH hardened (password auth disabled)"

@@ -16,6 +16,14 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 
+# --- Better History Search with fzf ---
+# Install fzf if available
+if command -v fzf &> /dev/null; then
+    # Use fzf for better ctrl+r history search
+    bindkey '^r' fzf-history-widget
+    export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
+fi
+
 # --- Aliases ---
 # File listing - prefer eza over exa, fallback to ls
 if command -v eza &> /dev/null; then
