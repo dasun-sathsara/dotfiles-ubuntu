@@ -310,63 +310,6 @@ install_packages() {
     success "Core packages installed."
 }
 
-install_pnpm() {
-    progress 3 12 "Installing pnpm"
-    if command_exists pnpm; then
-        info "pnpm is already installed."
-    else
-        info "Installing pnpm..."
-        
-        # Try multiple installation methods for pnpm
-        local pnpm_installed=false
-        
-        # Method 1: Use corepack (recommended method if available)
-        if command_exists corepack; then
-            info "Using corepack to enable pnpm..."
-            if corepack enable pnpm 2>/dev/null && corepack install --global pnpm@latest 2>/dev/null; then
-                pnpm_installed=true
-                success "pnpm installed via corepack."
-            fi
-        fi
-        
-        # Method 2: Use pnpm's standalone installer (most reliable)
-        if [[ "$pnpm_installed" == false ]]; then
-            info "Using pnpm standalone installer..."
-            if curl -fsSL https://get.pnpm.io/install.sh | sh -; then
-                # Source the updated PATH
-                export PNPM_HOME="$HOME/.local/share/pnpm"
-                export PATH="$PNPM_HOME:$PATH"
-                source "$HOME/.bashrc" 2>/dev/null || true
-                source "$HOME/.zshrc" 2>/dev/null || true
-                
-                if command_exists pnpm; then
-                    pnpm_installed=true
-                    success "pnpm installed via standalone installer."
-                fi
-            fi
-        fi
-        
-        # Method 3: Fallback to npm with user-local prefix (avoid global permissions)
-        if [[ "$pnpm_installed" == false ]]; then
-            info "Trying npm with local prefix..."
-            
-            # Set npm prefix to user directory to avoid permission issues
-            mkdir -p "$HOME/.npm-global"
-            npm config set prefix "$HOME/.npm-global"
-            export PATH="$HOME/.npm-global/bin:$PATH"
-            
-            if npm install -g pnpm 2>/dev/null; then
-                pnpm_installed=true
-                success "pnpm installed via npm with local prefix."
-            fi
-        fi
-        
-        if [[ "$pnpm_installed" == false ]]; then
-            error "Failed to install pnpm using all available methods"
-        fi
-    fi
-}
-
 install_uv() {
     progress 4 12 "Installing uv (Python package manager)"
     if command_exists uv; then
@@ -676,7 +619,6 @@ main() {
     
     initial_setup
     install_packages
-    install_pnpm
     install_uv
     install_go
     install_rust
