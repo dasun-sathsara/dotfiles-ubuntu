@@ -4,13 +4,13 @@ A comprehensive, opinionated script to automate the setup of a modern developmen
 
 ## Features
 
--   **Shell:** Zsh with Oh My Zsh, Powerlevel10k, auto-suggestions, and syntax highlighting.
--   **Multiplexer:** Tmux with a beautiful Catppuccin theme and TPM for plugin management.
+-   **Shell:** Zsh with Oh My Zsh, Agnoster theme, auto-suggestions, and syntax highlighting.
+-   **Multiplexer:** Tmux with enhanced navigation, Catppuccin theme, session resurrection, and TPM for plugin management.
 -   **Editor:** Neovim with a modern Lua-based configuration using `lazy.nvim`.
 -   **Languages & Runtimes:** Go, Python (with `uv`), and Node.js (with `pnpm`).
 -   **Tooling:** Docker, Docker Compose, `htop`, `fastfetch`, and `exa` (as `ls` alias).
 -   **Security:** Disables SSH password authentication in favor of SSH keys.
--   **Automation:** The entire process is handled by a single, robust bash script with error handling and user-friendly output.
+-   **Automation:** The entire process is handled by a single, robust bash script with comprehensive error handling, progress tracking, and automatic backups.
 
 ## Prerequisites
 
