@@ -17,11 +17,28 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 
 # --- Better History Search with fzf ---
-# Install fzf if available
 if command -v fzf &> /dev/null; then
-    # Use fzf for better ctrl+r history search
-    bindkey '^r' fzf-history-widget
-    export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
+    # Source fzf key bindings and completion
+    if [[ -f /usr/share/fzf/key-bindings.zsh ]]; then
+        source /usr/share/fzf/key-bindings.zsh
+    elif [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]]; then
+        source /usr/share/doc/fzf/examples/key-bindings.zsh
+    elif [[ -f ~/.fzf.zsh ]]; then
+        source ~/.fzf.zsh
+    fi
+    
+    if [[ -f /usr/share/fzf/completion.zsh ]]; then
+        source /usr/share/fzf/completion.zsh
+    elif [[ -f /usr/share/doc/fzf/examples/completion.zsh ]]; then
+        source /usr/share/doc/fzf/examples/completion.zsh
+    fi
+    
+    # Configure fzf options for better ctrl+r
+    export FZF_CTRL_R_OPTS="--preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview' --height 40%"
+    export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border"
+else
+    # Fallback: basic history search improvement without fzf
+    bindkey '^r' history-incremental-search-backward
 fi
 
 # --- Aliases ---
