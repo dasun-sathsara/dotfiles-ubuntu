@@ -11,6 +11,7 @@ A comprehensive, opinionated script to automate the setup of a modern developmen
 -   **Tooling:** Docker, Docker Compose, `htop`, `fastfetch`, and modern file utilities (`eza`/`exa`, `bat`).
 -   **Security:** Disables SSH password authentication in favor of SSH keys.
 -   **Compatibility:** Automatically detects Ubuntu version and adapts installation methods for optimal compatibility.
+-   **Idempotent Design:** Uses SHA256 checksums to track configuration changes and only updates files when necessary.
 -   **Automation:** The entire process is handled by a single, robust bash script with comprehensive error handling, progress tracking, and automatic backups.
 
 ## Supported Versions
@@ -62,6 +63,21 @@ The script automatically detects your Ubuntu version and adapts package installa
     # Press Ctrl+a + I to install plugins
     ```
 
+### Re-running the Script
+
+The script is fully **idempotent** and can be safely run multiple times. It will:
+
+-   **Skip unchanged configurations**: Only update files that have actually been modified
+-   **Detect updates automatically**: When you pull updates to configuration files (`.zshrc`, `.tmux.conf`, `init.lua`), the script will automatically apply them
+-   **Preserve existing installations**: Won't reinstall packages or tools that are already present
+-   **Smart plugin management**: Only reinstalls tmux plugins when the configuration has changed
+
+Simply run `./setup.sh` again anytime to:
+
+-   Apply updated configuration files from the repository
+-   Install any newly added packages or tools
+-   Ensure your environment stays up to date
+
 ## What Gets Installed
 
 ### Development Tools
@@ -104,6 +120,34 @@ The script includes several compatibility enhancements:
 -   **Go installation**: Official binary download with apt/PPA fallbacks
 -   **Docker repository**: Native repo with fallback to Ubuntu 24.04 repo for newer versions
 -   **Smart aliases**: Shell aliases adapt based on actually installed tools
+
+## Configuration File Management
+
+The script uses an intelligent checksum-based system to manage configuration files:
+
+### How It Works
+
+-   **SHA256 checksums** are calculated for all configuration files (`.zshrc`, `.tmux.conf`, `init.lua`)
+-   **Checksum storage**: File checksums are stored in `~/.dotfiles_checksums` for comparison between runs
+-   **Change detection**: Files are only updated when:
+    -   The source configuration has been modified (checksum changed)
+    -   The destination file doesn't exist
+    -   The destination file differs from the source
+
+### Benefits
+
+-   **Efficient updates**: Only processes files that have actually changed
+-   **Preserved customizations**: Your existing configurations won't be overwritten unless the source has been updated
+-   **Automatic backups**: Changed files are backed up before being replaced
+-   **Clear feedback**: The script tells you exactly which files are being updated or skipped
+
+### File Locations
+
+```
+~/.dotfiles_checksums     # Checksum tracking file
+~/.dotfiles_backup_*      # Timestamped backup directories
+/tmp/setup_*.log          # Installation logs
+```
 
 ## Troubleshooting
 

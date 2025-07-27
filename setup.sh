@@ -9,6 +9,7 @@ set -o pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/tmp/setup_$(date +%Y%m%d_%H%M%S).log"
 BACKUP_DIR="$HOME/.dotfiles_backup_$(date +%Y%m%d_%H%M%S)"
+CHECKSUM_FILE="$HOME/.dotfiles_checksums"
 
 # Ubuntu version detection
 UBUNTU_VERSION=""
@@ -51,6 +52,110 @@ backup_file() {
         mkdir -p "$BACKUP_DIR"
         cp "$file" "$BACKUP_DIR/$(basename "$file")"
         info "Backed up $file to $BACKUP_DIR/$(basename "$file")"
+    fi
+}
+
+# Function to calculate file checksum
+get_file_checksum() {
+    local file=$1
+    if [[ -f "$file" ]]; then
+        sha256sum "$file" | cut -d' ' -f1
+    else
+        echo "FILE_NOT_EXISTS"
+    fi
+}
+
+# Function to get stored checksum for a file
+get_stored_checksum() {
+    local file_key=$1
+    if [[ -f "$CHECKSUM_FILE" ]]; then
+        grep "^$file_key:" "$CHECKSUM_FILE" 2>/dev/null | cut -d':' -f2 || echo ""
+    else
+        echo ""
+    fi
+}
+
+# Function to store checksum for a file
+store_checksum() {
+    local file_key=$1
+    local checksum=$2
+    
+    # Create checksum file if it doesn't exist
+    touch "$CHECKSUM_FILE"
+    
+    # Remove existing entry for this file
+    grep -v "^$file_key:" "$CHECKSUM_FILE" > "$CHECKSUM_FILE.tmp" 2>/dev/null || true
+    mv "$CHECKSUM_FILE.tmp" "$CHECKSUM_FILE"
+    
+    # Add new entry
+    echo "$file_key:$checksum" >> "$CHECKSUM_FILE"
+}
+
+# Function to check if configuration file needs updating
+needs_config_update() {
+    local source_file=$1
+    local dest_file=$2
+    local file_key=$3
+    
+    # If source file doesn't exist, skip
+    if [[ ! -f "$source_file" ]]; then
+        warning "Source file $source_file not found, skipping"
+        return 1
+    fi
+    
+    # If destination file doesn't exist, definitely need to copy
+    if [[ ! -f "$dest_file" ]]; then
+        info "Destination file $dest_file doesn't exist, will create"
+        return 0
+    fi
+    
+    # Calculate current source file checksum
+    local current_checksum=$(get_file_checksum "$source_file")
+    local stored_checksum=$(get_stored_checksum "$file_key")
+    
+    # If checksums differ, file has been updated
+    if [[ "$current_checksum" != "$stored_checksum" ]]; then
+        info "Configuration file $source_file has been updated since last run"
+        return 0
+    fi
+    
+    # Check if destination file has been modified (compare with source)
+    local dest_checksum=$(get_file_checksum "$dest_file")
+    if [[ "$dest_checksum" != "$current_checksum" ]]; then
+        info "Destination file $dest_file differs from source, will update"
+        return 0
+    fi
+    
+    info "Configuration file $dest_file is up to date, skipping"
+    return 1
+}
+
+# Function to copy configuration file with change detection
+copy_config_file() {
+    local source_file=$1
+    local dest_file=$2
+    local file_key=$3
+    local description=$4
+    
+    if needs_config_update "$source_file" "$dest_file" "$file_key"; then
+        # Create destination directory if needed
+        mkdir -p "$(dirname "$dest_file")"
+        
+        # Backup existing file if it exists
+        backup_file "$dest_file"
+        
+        # Copy new configuration
+        cp "$source_file" "$dest_file" || error "Failed to copy $description"
+        
+        # Store new checksum
+        local new_checksum=$(get_file_checksum "$source_file")
+        store_checksum "$file_key" "$new_checksum"
+        
+        success "$description updated successfully"
+        return 0
+    else
+        info "$description is already up to date"
+        return 1
     fi
 }
 
@@ -145,6 +250,7 @@ initial_setup() {
     
     info "Starting the development environment setup..."
     info "Log file: $LOG_FILE"
+    info "Configuration checksums: $CHECKSUM_FILE"
     
     info "Updating system packages..."
     sudo apt-get update && sudo apt-get upgrade -y || error "Failed to update system packages"
@@ -290,9 +396,8 @@ setup_zsh() {
         git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$zsh_custom/plugins/zsh-syntax-highlighting" || error "Failed to install zsh-syntax-highlighting"
     fi
     
-    # Backup and copy zshrc
-    backup_file "$HOME/.zshrc"
-    cp "$SCRIPT_DIR/.zshrc" "$HOME/.zshrc" || error "Failed to copy .zshrc"
+    # Copy zshrc with change detection
+    copy_config_file "$SCRIPT_DIR/.zshrc" "$HOME/.zshrc" "zshrc" "Zsh configuration"
     
     # Change default shell
     if [[ "$SHELL" != "$(which zsh)" ]]; then
@@ -315,19 +420,25 @@ setup_tmux() {
         info "TPM is already installed."
     fi
     
-    # Backup and copy tmux.conf
-    backup_file "$HOME/.tmux.conf"
-    cp "$SCRIPT_DIR/.tmux.conf" "$HOME/.tmux.conf" || error "Failed to copy .tmux.conf"
+    # Copy tmux.conf with change detection
+    local tmux_updated=false
+    if copy_config_file "$SCRIPT_DIR/.tmux.conf" "$HOME/.tmux.conf" "tmux_conf" "Tmux configuration"; then
+        tmux_updated=true
+    fi
     
-    # Install plugins
-    info "Installing Tmux plugins..."
-    if command_exists tmux; then
-        # Kill any existing tmux sessions to avoid conflicts
-        tmux kill-server 2>/dev/null || true
-        tmux start-server || true
-        tmux new-session -d -s setup_session || true
-        "$HOME/.tmux/plugins/tpm/scripts/install_plugins.sh" || warning "Failed to install some tmux plugins automatically"
-        tmux kill-session -t setup_session 2>/dev/null || true
+    # Install plugins only if configuration was updated or plugins don't exist
+    if [[ "$tmux_updated" == true ]] || [[ ! -d "$HOME/.tmux/plugins/catppuccin" ]]; then
+        info "Installing Tmux plugins..."
+        if command_exists tmux; then
+            # Kill any existing tmux sessions to avoid conflicts
+            tmux kill-server 2>/dev/null || true
+            tmux start-server || true
+            tmux new-session -d -s setup_session || true
+            "$HOME/.tmux/plugins/tpm/scripts/install_plugins.sh" || warning "Failed to install some tmux plugins automatically"
+            tmux kill-session -t setup_session 2>/dev/null || true
+        fi
+    else
+        info "Tmux plugins are already installed."
     fi
     
     success "Tmux configured with enhanced features and plugins."
@@ -337,11 +448,10 @@ setup_neovim() {
     progress 8 11 "Setting up Neovim"
     info "Setting up Neovim..."
     
-    mkdir -p "$HOME/.config/nvim"
-    backup_file "$HOME/.config/nvim/init.lua"
-    cp "$SCRIPT_DIR/init.lua" "$HOME/.config/nvim/init.lua" || error "Failed to copy init.lua"
+    # Copy Neovim configuration with change detection
+    copy_config_file "$SCRIPT_DIR/init.lua" "$HOME/.config/nvim/init.lua" "nvim_init" "Neovim configuration"
     
-    success "Neovim configuration created."
+    success "Neovim configuration setup completed."
 }
 
 setup_docker() {
@@ -451,10 +561,12 @@ final_cleanup() {
     info "✓ SSH hardened (password auth disabled)"
     info "✓ Configuration backups saved to: $BACKUP_DIR"
     info "✓ Installation log saved to: $LOG_FILE"
+    info "✓ Configuration checksums stored in: $CHECKSUM_FILE"
     echo ""
     warning "IMPORTANT: Please reboot your system for all changes to take effect."
     warning "After reboot, run 'tmux' and press Ctrl+a + I to install tmux plugins."
     info "The setup has been optimized for Ubuntu 24.04+ and 25.04+ compatibility."
+    info "Re-run this script anytime to apply updated configuration files automatically."
 }
 
 # --- Main Execution ---
